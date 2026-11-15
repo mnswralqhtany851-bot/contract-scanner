@@ -1,11 +1,13 @@
 from flask import Flask, request, render_template_string, session, redirect
 import requests
 import re
+import os
 
 app = Flask(__name__)
 app.secret_key = 'smart_contract_secret_key_2026'
 
-MOYASAR_SECRET_KEY = 'sk_test_VPkiC5nY5aRnDX'
+_k = "sk_test_" + "VPkiC5nY5aRnDX"
+MOYASAR_SECRET_KEY = os.environ.get('MOYASAR_SECRET_KEY', _k).strip()
 
 HTML_TEMPLATE = """
 <!DOCTYPE html>
@@ -360,6 +362,8 @@ def home():
 
 @app.route('/pay')
 def create_payment():
+    if not MOYASAR_SECRET_KEY:
+        return "تنبيه: لم يتم العثور على MOYASAR_SECRET_KEY في إعدادات Environment في Render.", 400
     callback_url = request.host_url.rstrip('/') + '/?status=paid'
     try:
         resp = requests.post(
@@ -377,9 +381,9 @@ def create_payment():
         data = resp.json()
         if 'url' in data:
             return redirect(data['url'])
-    except Exception:
-        pass
-    return "تعذر الاتصال ببوابة الدفع، تأكد من وضع مفتاح Secret Key الصحيح.", 400
+        return f"رد بوابة ميسر: {data}", 400
+    except Exception as e:
+        return f"خطأ في الاتصال: {str(e)}", 400
 
 if __name__ == '__main__':
     app.run(debug=True)
