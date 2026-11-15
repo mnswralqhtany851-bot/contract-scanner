@@ -1,7 +1,12 @@
-from flask import Flask, request, render_template_string
+from flask import Flask, request, render_template_string, session
+import requests
 import re
 
 app = Flask(__name__)
+app.secret_key = 'smart_contract_secret_key_2026'
+
+# ضع هنا مفتاح النشر الخاص بك من منصة ميسر (Moyasar Publishable Key)
+MOYASAR_PUBLISHABLE_KEY = 'pk_test_qubW8u6KrWeNviW8sdZuAo5PzAm4oL8m8qeVHLe3'
 
 HTML_TEMPLATE = """
 <!DOCTYPE html>
