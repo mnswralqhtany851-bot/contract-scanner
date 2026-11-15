@@ -1,13 +1,8 @@
-from flask import Flask, request, render_template_string, session, redirect
-import requests
+from flask import Flask, request, render_template_string, session
 import re
-import os
 
 app = Flask(__name__)
 app.secret_key = 'smart_contract_secret_key_2026'
-
-_k = "sk_test_" + "6BHEZ6JxmiviKMgPjeTv6GfoMiPJniAUCieg416W"
-MOYASAR_SECRET_KEY = _k
 
 HTML_TEMPLATE = """
 <!DOCTYPE html>
@@ -145,12 +140,12 @@ HTML_TEMPLATE = """
             </div>
             كاشف العقود الذكي
         </div>
-        <div class="pro-badge">{{ 'النسخة الكاملة مفعلة' if unlocked else 'دفع مباشر • مدى / Apple Pay' }}</div>
+        <div class="pro-badge">{{ 'النسخة الكاملة مفعلة' if unlocked else 'دفع مباشر • مدى / فيزا' }}</div>
     </header>
     <main>
         <div class="hero-tag">الذكاء الاستنتاجي لكشف الفخاخ والبنود المسكوت عنها</div>
         <h1>يكشف لك خطورة ما كُتب في العقد، وخطورة ما لم يُكتب عمداً</h1>
-        <p class="subtitle">ألصق نص عقدك ليقوم المحرك بتحليل البنود الموجودة والناقصة، مع إمكانية فتح التقرير الكامل مباشرة عبر مدى أو Apple Pay.</p>
+        <p class="subtitle">ألصق نص عقدك ليقوم المحرك بتحليل البنود الموجودة والناقصة، مع إمكانية فتح التقرير الكامل مباشرة عبر البطاقة البنكية.</p>
 
         {% if msg %}
         <div style="background: rgba(16, 185, 129, 0.15); color: #34d399; padding: 14px; border-radius: 12px; margin-bottom: 24px; border: 1px solid rgba(16, 185, 129, 0.3); font-weight: 600;">
@@ -211,7 +206,7 @@ HTML_TEMPLATE = """
             {% if result.is_truncated %}
             <div class="paywall-box">
                 <h3 style="font-size: 20px; margin-bottom: 6px; color: #0f172a;">افتح الفحص الكامل لكامل العقد ({{ result.total_chars }} حرف) الآن</h3>
-                <p style="color: #475569; font-size: 14px; margin-bottom: 22px;">ادفع 19 ريالاً فقط بأمان عبر مدى أو Apple Pay أو البطاقة البنكية ليُفتح لك التحليل الكامل فوراً.</p>
+                <p style="color: #475569; font-size: 14px; margin-bottom: 22px;">ادفع 19 ريالاً فقط بأمان عبر مدى أو البطاقة البنكية ليُفتح لك التحليل الكامل فوراً.</p>
                 <a href="/pay" class="btn-pay">ادفع 19 ريالاً الآن وافتح التقرير</a>
             </div>
             {% endif %}
@@ -363,30 +358,43 @@ def home():
 @app.route('/pay')
 def create_payment():
     callback_url = request.host_url.rstrip('/') + '/?status=paid'
-    try:
-        resp = requests.post(
-            'https://moyasar.com',
-            auth=(MOYASAR_SECRET_KEY, ''),
-            headers={'Accept': 'application/json'},
-            data={
-                'amount': 1900,
-                'currency': 'SAR',
-                'description': 'فتح التقرير الكامل في كاشف العقود الذكي',
-                'callback_url': callback_url,
-                'back_url': request.host_url.rstrip('/')
-            },
-            timeout=10
-        )
-        if resp.status_code == 401:
-            return "المفتاح السري مرفوض من ميسر (401): تأكد من نسخ مفتاح Secret Key الصحيح والفعال من لوحة تحكم ميسر.", 400
-        if not resp.text.strip():
-            return f"رد فارغ من ميسر (رمز الحالة: {resp.status_code}) — تحقق من تفعيل الفواتير في حسابك بميسر.", 400
-        data = resp.json()
-        if 'url' in data:
-            return redirect(data['url'])
-        return f"رسالة ميسر: {data}", 400
-    except Exception as e:
-        return f"خطأ تقني: {str(e)}", 400
+    pub_key = "pk_test_VPkiC5nY5aRnDX" + "اكتب_باقي_المفتاح_العام_هنا"
+    pay_html = f"""
+    <!DOCTYPE html>
+    <html lang="ar" dir="rtl">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>إتمام الدفع الآمن | كاشف العقود الذكي</title>
+        <link href="https://googleapis.com" rel="stylesheet">
+        <link rel="stylesheet" href="https://moyasar.com" />
+        <script src="https://moyasar.com"></script>
+        <style>
+            body {{ background: #030712; color: #fff; font-family: 'IBM Plex Sans Arabic', sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; padding: 20px; }}
+            .card {{ background: #ffffff; color: #0f172a; padding: 32px; border-radius: 20px; width: 100%; max-width: 440px; text-align: center; box-shadow: 0 25px 50px rgba(0,0,0,0.5); }}
+        </style>
+    </head>
+    <body>
+        <div class="card">
+            <h2 style="margin-bottom: 6px;">كاشف العقود الذكي</h2>
+            <p style="color: #64748b; font-size: 14px; margin-bottom: 22px;">فتح التقرير الكامل • المبلغ: 19.00 ريال سعودي</p>
+            <div class="mysr-form"></div>
+        </div>
+        <script>
+            Moyasar.init({{
+                element: '.mysr-form',
+                amount: 1900,
+                currency: 'SAR',
+                description: 'فتح التقرير الكامل في كاشف العقود الذكي',
+                publishable_api_key: '{pub_key}',
+                callback_url: '{callback_url}',
+                methods: ['creditcard'],
+            }});
+        </script>
+    </body>
+    </html>
+    """
+    return pay_html
 
 if __name__ == '__main__':
     app.run(debug=True)
