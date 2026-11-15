@@ -5,7 +5,7 @@ import re
 app = Flask(__name__)
 app.secret_key = 'smart_contract_secret_key_2026'
 
-MOYASAR_SECRET_KEY = 'sk_test_xxxxxxxxxxxxxxxxxxxxxxxx'
+MOYASAR_SECRET_KEY = 'sk_test_VPkiC5nY5aRnDX'
 
 HTML_TEMPLATE = """
 <!DOCTYPE html>
