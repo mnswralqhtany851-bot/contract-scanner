@@ -362,14 +362,13 @@ def home():
 
 @app.route('/pay')
 def create_payment():
-    if not MOYASAR_SECRET_KEY:
-        return "تنبيه: لم يتم العثور على MOYASAR_SECRET_KEY في إعدادات Environment في Render.", 400
     callback_url = request.host_url.rstrip('/') + '/?status=paid'
     try:
         resp = requests.post(
             'https://moyasar.com',
             auth=(MOYASAR_SECRET_KEY, ''),
-            json={
+            headers={'Accept': 'application/json'},
+            data={
                 'amount': 1900,
                 'currency': 'SAR',
                 'description': 'فتح التقرير الكامل في كاشف العقود الذكي',
@@ -378,12 +377,16 @@ def create_payment():
             },
             timeout=10
         )
+        if resp.status_code == 401:
+            return "المفتاح السري مرفوض من ميسر (401): تأكد من نسخ مفتاح Secret Key الصحيح والفعال من لوحة تحكم ميسر.", 400
+        if not resp.text.strip():
+            return f"رد فارغ من ميسر (رمز الحالة: {resp.status_code}) — تحقق من تفعيل الفواتير في حسابك بميسر.", 400
         data = resp.json()
         if 'url' in data:
             return redirect(data['url'])
-        return f"رد بوابة ميسر: {data}", 400
+        return f"رسالة ميسر: {data}", 400
     except Exception as e:
-        return f"خطأ في الاتصال: {str(e)}", 400
+        return f"خطأ تقني: {str(e)}", 400
 
 if __name__ == '__main__':
     app.run(debug=True)
