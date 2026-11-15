@@ -1,11 +1,11 @@
-from flask import Flask, request, render_template_string, session
+from flask import Flask, request, render_template_string, session, redirect
 import requests
 import re
 
 app = Flask(__name__)
 app.secret_key = 'smart_contract_secret_key_2026'
 
-MOYASAR_PUBLISHABLE_KEY = 'pk_test_qubW8u6KrWeNviW8sdZuAo5PzAm4oL8m8qeVHLe3'
+MOYASAR_SECRET_KEY = 'sk_test_xxxxxxxxxxxxxxxxxxxxxxxx'
 
 HTML_TEMPLATE = """
 <!DOCTYPE html>
@@ -15,8 +15,6 @@ HTML_TEMPLATE = """
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>كاشف العقود الذكي | بوابة الدفع والتحليل الفوري</title>
     <link href="https://googleapis.com" rel="stylesheet">
-    <link rel="stylesheet" href="https://moyasar.com" />
-    <script src="https://moyasar.com"></script>
     <style>
         :root {
             --bg-main: #030712;
@@ -125,6 +123,12 @@ HTML_TEMPLATE = """
             background: #ffffff; color: #0f172a; text-align: center;
             box-shadow: 0 20px 40px rgba(0,0,0,0.5);
         }
+        .btn-pay {
+            display: inline-block; background: #7c3aed; color: #ffffff;
+            padding: 15px 34px; border-radius: 12px; text-decoration: none;
+            font-weight: 700; font-size: 16px; transition: transform 0.25s ease, box-shadow 0.25s ease;
+        }
+        .btn-pay:hover { transform: translateY(-3px); box-shadow: 0 10px 20px rgba(124, 58, 237, 0.35); }
         footer { width: 100%; text-align: center; padding: 22px; color: #6b7280; font-size: 13px; border-top: 1px solid var(--border); margin-top: 50px; }
     </style>
 </head>
@@ -139,12 +143,12 @@ HTML_TEMPLATE = """
             </div>
             كاشف العقود الذكي
         </div>
-        <div class="pro-badge">{{ 'النسخة الكاملة مفعلة' if unlocked else 'دفع مباشر • مدى / فيزا' }}</div>
+        <div class="pro-badge">{{ 'النسخة الكاملة مفعلة' if unlocked else 'دفع مباشر • مدى / Apple Pay' }}</div>
     </header>
     <main>
         <div class="hero-tag">الذكاء الاستنتاجي لكشف الفخاخ والبنود المسكوت عنها</div>
         <h1>يكشف لك خطورة ما كُتب في العقد، وخطورة ما لم يُكتب عمداً</h1>
-        <p class="subtitle">ألصق نص عقدك ليقوم المحرك بتحليل البنود الموجودة والناقصة، مع إمكانية فتح التقرير الكامل مباشرة عبر البطاقة البنكية.</p>
+        <p class="subtitle">ألصق نص عقدك ليقوم المحرك بتحليل البنود الموجودة والناقصة، مع إمكانية فتح التقرير الكامل مباشرة عبر مدى أو Apple Pay.</p>
 
         {% if msg %}
         <div style="background: rgba(16, 185, 129, 0.15); color: #34d399; padding: 14px; border-radius: 12px; margin-bottom: 24px; border: 1px solid rgba(16, 185, 129, 0.3); font-weight: 600;">
@@ -205,19 +209,8 @@ HTML_TEMPLATE = """
             {% if result.is_truncated %}
             <div class="paywall-box">
                 <h3 style="font-size: 20px; margin-bottom: 6px; color: #0f172a;">افتح الفحص الكامل لكامل العقد ({{ result.total_chars }} حرف) الآن</h3>
-                <p style="color: #475569; font-size: 14px; margin-bottom: 20px;">ادفع 19 ريالاً فقط بأمان عبر البطاقة البنكية ليُفتح لك التحليل الكامل فوراً في هذه الصفحة.</p>
-                <div class="mysr-form" style="max-width: 420px; margin: 0 auto;"></div>
-                <script>
-                    Moyasar.init({
-                        element: '.mysr-form',
-                        amount: 1900,
-                        currency: 'SAR',
-                        description: 'فتح التقرير الكامل في كاشف العقود الذكي',
-                        publishable_api_key: '{{ pub_key }}',
-                        callback_url: '{{ callback_url }}',
-                        methods: ['creditcard'],
-                    });
-                </script>
+                <p style="color: #475569; font-size: 14px; margin-bottom: 22px;">ادفع 19 ريالاً فقط بأمان عبر مدى أو Apple Pay أو البطاقة البنكية ليُفتح لك التحليل الكامل فوراً.</p>
+                <a href="/pay" class="btn-pay">ادفع 19 ريالاً الآن وافتح التقرير</a>
             </div>
             {% endif %}
         </div>
@@ -360,12 +353,33 @@ def home():
         if contract_text.strip():
             result = analyze_contract(contract_text, c_type, unlocked=unlocked)
 
-    callback_url = request.host_url.rstrip('/') + '/?status=paid'
     return render_template_string(
         HTML_TEMPLATE, result=result, contract_text=contract_text,
-        c_type=c_type, unlocked=unlocked, msg=msg,
-        pub_key=MOYASAR_PUBLISHABLE_KEY, callback_url=callback_url
+        c_type=c_type, unlocked=unlocked, msg=msg
     )
+
+@app.route('/pay')
+def create_payment():
+    callback_url = request.host_url.rstrip('/') + '/?status=paid'
+    try:
+        resp = requests.post(
+            'https://moyasar.com',
+            auth=(MOYASAR_SECRET_KEY, ''),
+            json={
+                'amount': 1900,
+                'currency': 'SAR',
+                'description': 'فتح التقرير الكامل في كاشف العقود الذكي',
+                'callback_url': callback_url,
+                'back_url': request.host_url.rstrip('/')
+            },
+            timeout=10
+        )
+        data = resp.json()
+        if 'url' in data:
+            return redirect(data['url'])
+    except Exception:
+        pass
+    return "تعذر الاتصال ببوابة الدفع، تأكد من وضع مفتاح Secret Key الصحيح.", 400
 
 if __name__ == '__main__':
     app.run(debug=True)
