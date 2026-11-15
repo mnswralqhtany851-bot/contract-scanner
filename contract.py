@@ -6,7 +6,7 @@ import os
 app = Flask(__name__)
 app.secret_key = 'smart_contract_secret_key_2026'
 
-_k = "sk_test_" + "VPkiC5nY5aRnDX"
+_k = "sk_test_" + "6BHEZ6JxmiviKMgPjeTv6GfoMiPJniAUCieg416W"
 MOYASAR_SECRET_KEY = os.environ.get('MOYASAR_SECRET_KEY', _k).strip()
 
 HTML_TEMPLATE = """
