@@ -5,7 +5,6 @@ import re
 app = Flask(__name__)
 app.secret_key = 'smart_contract_secret_key_2026'
 
-# ضع هنا مفتاح النشر الخاص بك من منصة ميسر (Moyasar Publishable Key)
 MOYASAR_PUBLISHABLE_KEY = 'pk_test_qubW8u6KrWeNviW8sdZuAo5PzAm4oL8m8qeVHLe3'
 
 HTML_TEMPLATE = """
@@ -14,8 +13,10 @@ HTML_TEMPLATE = """
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>كاشف العقود الذكي | تحليل البنود الموجودة والناقصة</title>
+    <title>كاشف العقود الذكي | بوابة الدفع والتحليل الفوري</title>
     <link href="https://googleapis.com" rel="stylesheet">
+    <link rel="stylesheet" href="https://moyasar.com" />
+    <script src="https://moyasar.com"></script>
     <style>
         :root {
             --bg-main: #030712;
@@ -52,11 +53,9 @@ HTML_TEMPLATE = """
             display: flex; align-items: center; justify-content: center;
         }
         .pro-badge {
-            background: rgba(139, 92, 246, 0.14); border: 1px solid rgba(139, 92, 246, 0.35);
-            color: var(--accent-light); padding: 7px 16px; border-radius: 999px; font-size: 13px; font-weight: 700;
-            text-decoration: none; transition: transform 0.25s ease;
+            background: rgba(16, 185, 129, 0.14); border: 1px solid rgba(16, 185, 129, 0.35);
+            color: #34d399; padding: 7px 16px; border-radius: 999px; font-size: 13px; font-weight: 700;
         }
-        .pro-badge:hover { transform: translateY(-3px); }
         main { width: 100%; max-width: 950px; padding: 48px 20px; text-align: center; flex: 1; }
         .hero-tag {
             display: inline-block; padding: 6px 16px; border-radius: 999px;
@@ -81,7 +80,6 @@ HTML_TEMPLATE = """
             padding: 16px; border-radius: 14px; outline: none; resize: vertical;
             line-height: 1.7; margin-bottom: 16px;
         }
-        .editor-box textarea:focus { border-color: var(--border-bright); }
         .editor-footer { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px; }
         .btn-analyze {
             background: linear-gradient(135deg, #7c3aed, #a78bfa);
@@ -123,16 +121,10 @@ HTML_TEMPLATE = """
             padding: 10px 14px; border-radius: 8px; font-size: 13px; color: #ddd6fe;
         }
         .paywall-box {
-            margin-top: 24px; padding: 24px; border-radius: 16px;
-            background: linear-gradient(135deg, rgba(124, 58, 237, 0.15), rgba(17, 24, 39, 0.9));
-            border: 1px dashed var(--border-bright); text-align: center;
+            margin-top: 28px; padding: 28px; border-radius: 18px;
+            background: #ffffff; color: #0f172a; text-align: center;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.5);
         }
-        .btn-unlock {
-            display: inline-block; margin-top: 14px; background: var(--accent-light); color: #030712;
-            padding: 13px 28px; border-radius: 12px; text-decoration: none; font-weight: 700;
-            transition: transform 0.25s ease;
-        }
-        .btn-unlock:hover { transform: translateY(-3px); }
         footer { width: 100%; text-align: center; padding: 22px; color: #6b7280; font-size: 13px; border-top: 1px solid var(--border); margin-top: 50px; }
     </style>
 </head>
@@ -147,12 +139,18 @@ HTML_TEMPLATE = """
             </div>
             كاشف العقود الذكي
         </div>
-        <a href="#pro" class="pro-badge">الباقة الكاملة • 19 ريال</a>
+        <div class="pro-badge">{{ 'النسخة الكاملة مفعلة' if unlocked else 'دفع مباشر • مدى / فيزا' }}</div>
     </header>
     <main>
         <div class="hero-tag">الذكاء الاستنتاجي لكشف الفخاخ والبنود المسكوت عنها</div>
         <h1>يكشف لك خطورة ما كُتب في العقد، وخطورة ما لم يُكتب عمداً</h1>
-        <p class="subtitle">حتى لو أعطاك الطرف الآخر اتفاقية قصيرة بدون شروط واضحة، يحلل المحرك النص ويكشف لك الحقوق الناقصة التي يجب إضافتها فوراً.</p>
+        <p class="subtitle">ألصق نص عقدك ليقوم المحرك بتحليل البنود الموجودة والناقصة، مع إمكانية فتح التقرير الكامل مباشرة عبر البطاقة البنكية.</p>
+
+        {% if msg %}
+        <div style="background: rgba(16, 185, 129, 0.15); color: #34d399; padding: 14px; border-radius: 12px; margin-bottom: 24px; border: 1px solid rgba(16, 185, 129, 0.3); font-weight: 600;">
+            {{ msg }}
+        </div>
+        {% endif %}
 
         <form class="editor-box" method="POST" action="/">
             <select name="contract_type" class="type-select">
@@ -160,9 +158,11 @@ HTML_TEMPLATE = """
                 <option value="work" {{ 'selected' if c_type == 'work' else '' }}>عقد عمل وتوظيف (نظام العمل السعودي)</option>
                 <option value="rent" {{ 'selected' if c_type == 'rent' else '' }}>عقد إيجار عقاري أو تجاري</option>
             </select>
-            <textarea name="contract_text" placeholder="ألصق نص العقد أو حتى رسالة الاتفاق القصيرة هنا..." required>{{ contract_text }}</textarea>
+            <textarea name="contract_text" placeholder="ألصق نص العقد أو اتفاقية العمل هنا..." required>{{ contract_text }}</textarea>
             <div class="editor-footer">
-                <span style="font-size: 13px; color: var(--text-muted);">التدقيق المجاني يشمل أول 500 حرف مع كشف البنود الناقصة مجاناً.</span>
+                <span style="font-size: 13px; color: var(--text-muted);">
+                    {{ 'الفحص الكامل مفتوح لهذا العقد بدون قيود.' if unlocked else 'الفحص المجاني يشمل أول 500 حرف من العقد تلقائياً.' }}
+                </span>
                 <button type="submit" class="btn-analyze">تحليل واستنتاج المخاطر</button>
             </div>
         </form>
@@ -171,7 +171,7 @@ HTML_TEMPLATE = """
         <div class="report-panel">
             <div class="panel-top">
                 <div>
-                    <span style="color: var(--text-muted); font-size: 13px;">تقرير الاستنتاج التعاقدي • تم تحليل {{ result.analyzed_chars }} حرف</span>
+                    <span style="color: var(--text-muted); font-size: 13px;">تقرير الاستنتاج التعاقدي • تم تحليل {{ result.analyzed_chars }} من أصل {{ result.total_chars }} حرف</span>
                     <h2 style="font-size: 22px; margin-top: 5px; color: {{ result.color }};">{{ result.title }}</h2>
                 </div>
                 <div class="score-badge {{ result.border_class }}">
@@ -203,10 +203,21 @@ HTML_TEMPLATE = """
             {% endfor %}
 
             {% if result.is_truncated %}
-            <div id="pro" class="paywall-box">
-                <h3 style="font-size: 19px; color: #fff; margin-bottom: 6px;">النص الكامل يحتوي على {{ result.total_chars }} حرف — تم فحص الجزء المجاني فقط</h3>
-                <p style="color: var(--text-muted); font-size: 14px;">لفتح التدقيق الشامل لكامل العقد والحصول على صياغة عقد متكامل يحمي حقوقك:</p>
-                <a href="https://wa.me" target="_blank" class="btn-unlock">افتح التدقيق الكامل الآن • 19 ريال</a>
+            <div class="paywall-box">
+                <h3 style="font-size: 20px; margin-bottom: 6px; color: #0f172a;">افتح الفحص الكامل لكامل العقد ({{ result.total_chars }} حرف) الآن</h3>
+                <p style="color: #475569; font-size: 14px; margin-bottom: 20px;">ادفع 19 ريالاً فقط بأمان عبر البطاقة البنكية ليُفتح لك التحليل الكامل فوراً في هذه الصفحة.</p>
+                <div class="mysr-form" style="max-width: 420px; margin: 0 auto;"></div>
+                <script>
+                    Moyasar.init({
+                        element: '.mysr-form',
+                        amount: 1900,
+                        currency: 'SAR',
+                        description: 'فتح التقرير الكامل في كاشف العقود الذكي',
+                        publishable_api_key: '{{ pub_key }}',
+                        callback_url: '{{ callback_url }}',
+                        methods: ['creditcard'],
+                    });
+                </script>
             </div>
             {% endif %}
         </div>
@@ -216,39 +227,38 @@ HTML_TEMPLATE = """
 </body>
 </html>
 """
-def analyze_contract(full_text, c_type):
+def analyze_contract(full_text, c_type, unlocked=False):
     total_chars = len(full_text.strip())
-    is_truncated = total_chars > 500
+    is_truncated = (total_chars > 500) and (not unlocked)
     text_to_scan = full_text.strip()[:500] if is_truncated else full_text.strip()
 
     score = 100
     findings = []
     missing_findings = []
 
-    # 1. محرك كشف البنود الناقصة (ما سُكت عنه في العقد)
     essential_clauses = [
         {
             "types": ["general", "work", "rent"],
             "check_words": ["ريال", "مبلغ", "أجر", "راتب", "قيمة", "تكلفة", "سعر", "مقابل"],
             "penalty": 20,
             "head": "غياب تحديد المقابل المالي أو آلية الدفع بوضوح",
-            "detail": "النص لا يحدد المبلغ المالي بدقة أو مواعيد السداد؛ ترك المقابل المالي غامضاً يؤدي غالباً إلى خلافات أو مطالبات إضافية غير متوقعة.",
-            "fix": "يُحدد إجمالي المقابل المالي بمبلغ وقدره (....) ريال سعودي فقط، يُسدد على دفعات مرتبطة بالإنجاز أو في تاريخ محدد."
+            "detail": "النص لا يحدد المبلغ المالي بدقة أو مواعيد السداد؛ ترك المقابل المالي غامضاً يؤدي غالباً إلى خلافات مالية.",
+            "fix": "يُحدد إجمالي المقابل المالي بمبلغ وقدره (....) ريال سعودي فقط، يُسدد على دفعات مرتبطة بالإنجاز."
         },
         {
             "types": ["general", "rent"],
             "check_words": ["مدة", "تاريخ", "يوم", "شهر", "سنة", "تسليم", "انتهاء", "ينتهي"],
             "penalty": 20,
             "head": "غياب تحديد مدة العقد أو موعد التسليم النهائي",
-            "detail": "عدم وجود تاريخ محدد للبدء والانتهاء أو التسليم يمنح الطرف المنفذ مفتاح المماطلة دون أن تملك حق مطالبته بالتأخير.",
-            "fix": "يلتزم الطرف المنفذ بتسليم كامل الأعمال محل العقد في موعد أقصاه (....) يوم عمل من تاريخ توقيع هذا العقد."
+            "detail": "عدم وجود تاريخ محدد للبدء والانتهاء أو التسليم يمنح الطرف المنفذ مفتاح المماطلة.",
+            "fix": "يلتزم الطرف المنفذ بتسليم كامل الأعمال محل العقد في موعد أقصاه (....) يوم عمل من تاريخ التوقيع."
         },
         {
             "types": ["general", "work", "rent"],
             "check_words": ["فسخ", "إنهاء", "إلغاء", "إخلال", "تقصير"],
             "penalty": 15,
             "head": "غياب بند يوضح حقك في الفسخ أو الاسترجاع عند التقصير",
-            "detail": "لم يذكر العقد ماذا يحدث لو أخل الطرف الآخر بالتزاماته أو تأخر؛ بدون هذا البند ستجد صعوبة في استرداد أموالك أو إنهاء الاتفاق.",
+            "detail": "لم يذكر العقد ماذا يحدث لو أخل الطرف الآخر بالتزاماته أو تأخر.",
             "fix": "في حال إخلال أحد الطرفين بالتزاماته وعدم تصحيحها خلال 7 أيام من إشعاره كتابياً، يحق للطرف المتضرر فسخ العقد واسترداد مستحقاته."
         },
         {
@@ -257,15 +267,7 @@ def analyze_contract(full_text, c_type):
             "penalty": 15,
             "head": "غياب بند الضمان أو التعديلات بعد التسليم",
             "detail": "الاتفاقية تخلو من أي التزام بضمان جودة العمل أو إجراء التعديلات اللازمة بعد التسليم الأولي.",
-            "fix": "يضمن الطرف الأول جودة الأعمال المنفذة ويلتزم بإجراء التعديلات المطلوبة وفق المواصفات المتفق عليها مجاناً خلال فترة الضمان."
-        },
-        {
-            "types": ["work"],
-            "check_words": ["ساعات العمل", "إجازة", "تأمين", "بدل", "نقل", "سكن"],
-            "penalty": 15,
-            "head": "نقص بيانات البدلات والإجازات وساعات العمل الأساسية",
-            "detail": "عقد العمل يفتقر لتفصيل البدلات (السكن والنقل) أو رصيد الإجازات السنوية وساعات العمل الأسبوعية وفق نظام العمل السعودي.",
-            "fix": "تُحدد ساعات العمل بـ 8 ساعات يومياً (48 ساعة أسبوعياً كحد أقصى) مع إجازة سنوية مدفوعة الأجر لا تقل عن 21 يوماً وبدل سكن ونقل محدد."
+            "fix": "يضمن الطرف الأول جودة الأعمال المنفذة ويلتزم بإجراء التعديلات المطلوبة وفق المواصفات مجاناً خلال فترة الضمان."
         }
     ]
 
@@ -273,31 +275,14 @@ def analyze_contract(full_text, c_type):
         if c_type in clause["types"]:
             if not any(w in text_to_scan for w in clause["check_words"]):
                 score -= clause["penalty"]
-                missing_findings.append({
-                    "head": clause["head"],
-                    "detail": clause["detail"],
-                    "fix": clause["fix"]
-                })
+                missing_findings.append({"head": clause["head"], "detail": clause["detail"], "fix": clause["fix"]})
 
-    # 2. محرك تحليل الأرقام والمدد المبالغ فيها داخل النص
-    days_matches = re.findall(r'(\d+)\s*(?:يوم|يوماً|أيام)', text_to_scan)
-    for d in days_matches:
-        if int(d) > 90 and c_type == "work":
-            score -= 20
-            findings.append({
-                "safe": False,
-                "head": f"مخالفة نظامية في الأرقام: رصد مدة ({d} يوماً) تتجاوز الحد المعتاد",
-                "detail": "في نظام العمل السعودي، فترة التجربة الأساسية هي 90 يوماً ولا يجوز تمديدها لأكثر من 180 يوماً وباتفاق مكتوب مستقل.",
-                "fix": "تعديل المدة لتكون 90 يوماً وفق المادة 53 من نظام العمل السعودي."
-            })
-
-    # 3. محرك كشف البنود الخطيرة المكتوبة في النص
     danger_rules = [
         {
             "keywords": ["شرط جزائي", "غرامة", "تعويض مالي", "يلتزم بدفع"],
             "penalty": 20,
             "head": "تنبيه مالي: شرط جزائي أو غرامة تعويضية",
-            "detail": "يتضمن النص غرامة مالية عند الانسحاب أو التأخر؛ تأكد من تساوي الشرط الجزائي على الطرفين وعدم تطبيقه في الظروف القاهرة.",
+            "detail": "يتضمن النص غرامة مالية عند الانسحاب أو التأخر؛ تأكد من تساوي الشرط الجزائي على الطرفين.",
             "fix": "يُستحق التعويض فقط عند ثبوت التقصير العمدي وبعد إشعار كتابي بمهلة تصحيح لا تقل عن 15 يوماً."
         },
         {
@@ -311,7 +296,7 @@ def analyze_contract(full_text, c_type):
             "keywords": ["تنازل", "إبراء ذمة", "لا يحق للطرف الثاني", "يسقط حقه"],
             "penalty": 30,
             "head": "خطر حرج: بند تنازل مسبق عن الحقوق أو إبراء ذمة",
-            "detail": "التنازل المسبق عن الحقوق قبل استلام كامل المستحقات يُعد شرطاً مجحفاً ويحرمك من المطالبة بحقك مستقبلاً.",
+            "detail": "التنازل المسبق عن الحقوق قبل استلام كامل المستحقات يُعد شرطاً مجحفاً.",
             "fix": "حذف عبارة التنازل المسبق بالكامل، وربط المخالصة باستلام كامل المستحقات المالية."
         },
         {
@@ -332,7 +317,7 @@ def analyze_contract(full_text, c_type):
         findings.append({
             "safe": True,
             "head": "لم تُرصد صياغات عدوانية أو شروط جزائية صريحة في الكلمات المكتوبة",
-            "detail": "الكلمات المكتوبة لا تحتوي على فخاخ ظاهرة، ولكن راجع قسم (ثغرات الغياب) أعلاه للتأكد من إضافة البنود الناقصة.",
+            "detail": "الكلمات المكتوبة لا تحتوي على فخاخ ظاهرة، ولكن راجع قسم (ثغرات الغياب) أعلاه.",
             "fix": None
         })
 
@@ -346,28 +331,41 @@ def analyze_contract(full_text, c_type):
         title, color, border_class = "تحذير مرتفع: العقد غير آمن أو يفتقر لأهم حقوقك", "#ef4444", "danger-style"
 
     return {
-        "score": score,
-        "title": title,
-        "color": color,
-        "border_class": border_class,
-        "findings": findings,
-        "missing_findings": missing_findings,
-        "total_chars": total_chars,
-        "analyzed_chars": len(text_to_scan),
+        "score": score, "title": title, "color": color, "border_class": border_class,
+        "findings": findings, "missing_findings": missing_findings,
+        "total_chars": total_chars, "analyzed_chars": len(text_to_scan),
         "is_truncated": is_truncated
     }
 
 @app.route('/', methods=['GET', 'POST'])
 def home():
     result = None
-    contract_text = ""
-    c_type = "general"
+    msg = None
+    unlocked = session.get('unlocked', False)
+    contract_text = session.get('saved_text', '')
+    c_type = session.get('saved_type', 'general')
+
+    if request.args.get('status') == 'paid':
+        unlocked = True
+        session['unlocked'] = True
+        msg = "تمت عملية الدفع بنجاح! تم فتح التدقيق الكامل لكامل العقد بدون قيود."
+        if contract_text:
+            result = analyze_contract(contract_text, c_type, unlocked=True)
+
     if request.method == 'POST':
         contract_text = request.form.get('contract_text', '')
         c_type = request.form.get('contract_type', 'general')
+        session['saved_text'] = contract_text
+        session['saved_type'] = c_type
         if contract_text.strip():
-            result = analyze_contract(contract_text, c_type)
-    return render_template_string(HTML_TEMPLATE, result=result, contract_text=contract_text, c_type=c_type)
+            result = analyze_contract(contract_text, c_type, unlocked=unlocked)
+
+    callback_url = request.host_url.rstrip('/') + '/?status=paid'
+    return render_template_string(
+        HTML_TEMPLATE, result=result, contract_text=contract_text,
+        c_type=c_type, unlocked=unlocked, msg=msg,
+        pub_key=MOYASAR_PUBLISHABLE_KEY, callback_url=callback_url
+    )
 
 if __name__ == '__main__':
     app.run(debug=True)
